@@ -22,23 +22,22 @@ async function startServer() {
     const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch || 'main'}${ref}`;
 
     try {
+      const headers: any = {
+        'User-Agent': 'CodeMind-Analyst',
+        'Accept': 'application/vnd.github.v3+json'
+      };
+      
+      if (process.env.GITHUB_TOKEN) {
+        headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
+      }
+
       // Try main first, if fails try master (simple fallback logic)
-      let response = await fetch(url, {
-        headers: {
-          'User-Agent': 'CodeMind-Analyst',
-          'Accept': 'application/vnd.github.v3+json'
-        }
-      });
+      let response = await fetch(url, { headers });
 
       if (response.status === 404 && !branch) {
          // Try 'master' if 'main' failed and no branch specified
          const masterUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`;
-         response = await fetch(masterUrl, {
-            headers: {
-              'User-Agent': 'CodeMind-Analyst',
-              'Accept': 'application/vnd.github.v3+json'
-            }
-          });
+         response = await fetch(masterUrl, { headers });
       }
 
       if (!response.ok) {
@@ -83,6 +82,12 @@ async function startServer() {
       appType: "spa",
     });
     app.use(vite.middlewares);
+  } else {
+    // Production middleware
+    app.use(express.static('dist'));
+    app.get('*', (_req, res) => {
+      res.sendFile('index.html', { root: 'dist' });
+    });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
