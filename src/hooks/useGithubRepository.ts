@@ -5,6 +5,7 @@ import { githubApi } from '@/services/github.api';
 export function useGithubRepository() {
   const [repoUrl, setRepoUrl] = useState<string | null>(null);
   const [files, setFiles] = useState<FileNode[]>([]);
+  const [branch, setBranch] = useState<string>('main');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<{ path: string, content: string } | null>(null);
@@ -13,7 +14,7 @@ export function useGithubRepository() {
   const [fileHistory, setFileHistory] = useState<{ path: string, content: string }[]>([]);
   const [currentHistoryIndex, setCurrentHistoryIndex] = useState(-1);
 
-  const fetchRepository = useCallback(async (url: string) => {
+  const analyzeRepository = useCallback(async (url: string, performAnalysis: (files: { path: string, content: string }[]) => Promise<string>) => {
     setIsLoading(true);
     setError(null);
     setRepoUrl(url);
@@ -25,14 +26,30 @@ export function useGithubRepository() {
       const [, owner, repo] = match;
 
       const treeData = await githubApi.getTree(owner, repo);
-      const allFiles = treeData.tree.filter((f) => f.type === 'blob');
-      setFiles(allFiles);
+      // We keep all nodes (trees and blobs) for the file explorer
+      const allNodes = treeData.tree;
+      setFiles(allNodes);
+      const currentBranch = treeData.branch || 'main';
+      setBranch(currentBranch);
       
-      return { owner, repo, allFiles };
+      // Fetch key files for initial analysis
+      // Filter for blobs only
+      const priorityFiles = allNodes.filter((f) => 
+        f.type === 'blob' && f.path.match(/(README|package\.json|tsconfig\.json|src\/main|src\/App|server\.ts|\.py|\.js|\.tsx)$/i)
+      ).slice(0, 5);
+
+      const fileContents = await Promise.all(priorityFiles.map(async (f) => {
+        const content = await githubApi.getFileContent(owner, repo, f.path, currentBranch);
+        return { path: f.path, content };
+      }));
+
+      await performAnalysis(fileContents);
+      
+      return { owner, repo, allFiles: allNodes, branch: currentBranch };
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : "Ocorreu um erro ao buscar o repositório.");
-      throw err;
+      // throw err; // Don't throw, just set error state
     } finally {
       setIsLoading(false);
     }
@@ -49,7 +66,7 @@ export function useGithubRepository() {
       if (!match) return;
       const [, owner, repo] = match;
 
-      const content = await githubApi.getFileContent(owner, repo, path);
+      const content = await githubApi.getFileContent(owner, repo, path, branch);
       
       const newFile = { path, content };
       setSelectedFile(newFile);
@@ -64,7 +81,7 @@ export function useGithubRepository() {
       console.error(err);
       setError("Falha ao carregar conteúdo do arquivo");
     }
-  }, [repoUrl, selectedFile, fileHistory, currentHistoryIndex]);
+  }, [repoUrl, selectedFile, fileHistory, currentHistoryIndex, branch]);
 
   const navigateBack = useCallback(() => {
     if (currentHistoryIndex > 0) {
@@ -99,7 +116,7 @@ export function useGithubRepository() {
     selectedFile,
     fileHistory,
     currentHistoryIndex,
-    fetchRepository,
+    analyzeRepository,
     selectFile,
     navigateBack,
     navigateForward,

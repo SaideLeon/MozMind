@@ -12,6 +12,7 @@ export interface RepoTreeResponse {
   url: string;
   tree: FileNode[];
   truncated: boolean;
+  branch?: string;
 }
 
 export interface AnalysisMessage {

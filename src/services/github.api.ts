@@ -32,13 +32,13 @@ export const githubApi = {
     return res.json();
   },
 
-  async getFileContent(owner: string, repo: string, path: string): Promise<string> {
-    const cacheKey = `${owner}/${repo}/${path}`;
+  async getFileContent(owner: string, repo: string, path: string, branch: string): Promise<string> {
+    const cacheKey = `${owner}/${repo}/${branch}/${path}`;
     if (fileCache.has(cacheKey)) {
       return fileCache.get(cacheKey)!;
     }
 
-    const res = await fetch(`/api/github/content?owner=${owner}&repo=${repo}&path=${path}`);
+    const res = await fetch(`/api/github/content?owner=${owner}&repo=${repo}&path=${path}&branch=${branch}`);
     if (!res.ok) throw new Error("Falha ao buscar arquivo");
     
     const text = await res.text();

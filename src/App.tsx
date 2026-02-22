@@ -16,7 +16,6 @@ import { useAIChat } from '@/hooks/useAIChat';
 
 export default function App() {
   const [maximizedPanel, setMaximizedPanel] = useState<'chat' | 'file' | null>(null);
-  const [hasKey, setHasKey] = useState(true);
 
   // Custom Hooks
   const {
@@ -27,7 +26,7 @@ export default function App() {
     selectedFile,
     fileHistory,
     currentHistoryIndex,
-    fetchRepository,
+    analyzeRepository,
     selectFile,
     navigateBack,
     navigateForward,
@@ -48,12 +47,6 @@ export default function App() {
 
   // Effects
   useEffect(() => {
-    if (!process.env.GEMINI_API_KEY) {
-      setHasKey(false);
-    }
-  }, []);
-
-  useEffect(() => {
     if (!selectedFile && maximizedPanel === 'file') {
       setMaximizedPanel(null);
     }
@@ -61,42 +54,7 @@ export default function App() {
 
   // Handlers
   const handleAnalyze = async (url: string) => {
-    if (!hasKey) {
-      setRepoError("A Chave da API Gemini está faltando. Configure-a nos segredos do AI Studio.");
-      return;
-    }
-
-    try {
-      const { owner, repo, allFiles } = await fetchRepository(url);
-      
-      // Fetch key files for initial analysis
-      const priorityFiles = allFiles.filter((f) => 
-        f.path.match(/(README|package\.json|tsconfig\.json|src\/main|src\/App|server\.ts|\.py|\.js|\.tsx)$/i)
-      ).slice(0, 5);
-
-      // We need to fetch content for these files to send to AI
-      // Ideally this logic should be in the hook or service, but for now we orchestrate here
-      // to keep hooks focused.
-      // Actually, let's fetch them using the hook's underlying service or just fetch them one by one.
-      // Since we don't want to select them in UI, we use the service directly or a helper.
-      // But we can just use fetch directly here or import the api service.
-      // Let's import the api service for this specific batch operation to avoid polluting the hook state.
-      // Wait, we can't import service here if we want to keep it clean.
-      // Let's just use a loop with selectFile? No, that changes UI state.
-      
-      // Let's assume we import githubApi here for this batch op.
-      const { githubApi } = await import('@/services/github.api');
-      
-      const fileContents = await Promise.all(priorityFiles.map(async (f) => {
-        const content = await githubApi.getFileContent(owner, repo, f.path);
-        return { path: f.path, content };
-      }));
-
-      await performInitialAnalysis(fileContents);
-
-    } catch (err) {
-      // Error is handled in hook
-    }
+    await analyzeRepository(url, performInitialAnalysis);
   };
 
   const handleGenerateBlueprint = async () => {
@@ -117,14 +75,6 @@ export default function App() {
       <Header />
       
       <main className="w-full p-4 md:p-6">
-        {!hasKey && (
-          <div className="mb-6 bg-yellow-500/10 border border-yellow-500/20 text-yellow-200 p-4 rounded-xl flex items-center gap-3">
-            <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
-            <span>
-              <strong>Configuração Necessária:</strong> A Chave da API Gemini está faltando. Por favor, adicione <code>GEMINI_API_KEY</code> aos seus segredos.
-            </span>
-          </div>
-        )}
         <AnimatePresence mode="wait">
           {!repoUrl ? (
             <RepoInput key="input" onAnalyze={handleAnalyze} isLoading={isRepoLoading} />
