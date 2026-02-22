@@ -16,6 +16,36 @@ async function startServer() {
 
   // API Routes for GitHub Proxy
   
+  // Get User Repositories
+  app.get("/api/github/repos", async (req, res, next) => {
+    try {
+      const userToken = req.headers['x-github-token'] as string;
+      if (!userToken) {
+        throw new AppError("GitHub token is required to list repositories", 401);
+      }
+
+      const headers: any = {
+        'User-Agent': 'CodeMind-Analyst',
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': `Bearer ${userToken}`
+      };
+
+      // Fetch user repos sorted by updated time
+      const url = `https://api.github.com/user/repos?sort=updated&per_page=100&type=all`;
+      const response = await fetch(url, { headers });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new AppError("Failed to fetch repositories", response.status, error);
+      }
+
+      const repos = await response.json();
+      res.json(repos);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Get Repository Tree (Recursive)
   app.get("/api/github/tree", async (req, res, next) => {
     try {
@@ -29,7 +59,10 @@ async function startServer() {
         'Accept': 'application/vnd.github.v3+json'
       };
       
-      if (config.githubToken) {
+      const userToken = req.headers['x-github-token'] as string;
+      if (userToken) {
+        headers['Authorization'] = `Bearer ${userToken}`;
+      } else if (config.githubToken) {
         headers['Authorization'] = `Bearer ${config.githubToken}`;
       }
 
@@ -89,7 +122,16 @@ async function startServer() {
       }
 
       const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
-      const response = await fetch(url);
+      
+      const headers: any = {};
+      const userToken = req.headers['x-github-token'] as string;
+      if (userToken) {
+        headers['Authorization'] = `Bearer ${userToken}`;
+      } else if (config.githubToken) {
+        headers['Authorization'] = `Bearer ${config.githubToken}`;
+      }
+
+      const response = await fetch(url, { headers });
 
       if (!response.ok) {
         throw new AppError("Failed to fetch file content", response.status);

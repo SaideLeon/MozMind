@@ -73,8 +73,11 @@ export const ChatInterface = ({
   };
 
   return (
-    <div className={cn("flex flex-col bg-[#111] rounded-xl border border-white/10 overflow-hidden transition-all duration-300", isMaximized ? "h-[calc(100vh-120px)]" : "h-[600px]")}>
-      <div className="p-4 border-b border-white/10 bg-[#151515] flex items-center justify-between">
+    <div className={cn(
+      "flex flex-col bg-[#111] rounded-xl border border-white/10 overflow-hidden transition-all duration-300", 
+      isMaximized ? "h-full" : "h-full lg:h-[600px]"
+    )}>
+      <div className="p-3 md:p-4 border-b border-white/10 bg-[#151515] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h3 className="font-medium flex items-center gap-2">
             <MessageSquare className="w-4 h-4 text-indigo-400" />

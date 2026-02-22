@@ -33,10 +33,13 @@ export const FileViewer = ({
   };
 
   return (
-    <div className={cn("flex flex-col bg-[#111] rounded-xl border border-white/10 overflow-hidden relative transition-all duration-300", isMaximized ? "h-[calc(100vh-120px)]" : "h-[600px]")}>
-      <div className="p-4 border-b border-white/10 bg-[#151515] flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 bg-black/20 rounded-lg p-1">
+    <div className={cn(
+      "flex flex-col bg-[#111] rounded-xl border border-white/10 overflow-hidden relative transition-all duration-300", 
+      isMaximized ? "h-full" : "h-full lg:h-[600px]"
+    )}>
+      <div className="p-3 md:p-4 border-b border-white/10 bg-[#151515] flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-1 bg-black/20 rounded-lg p-1 shrink-0">
             <button 
               onClick={onBack}
               disabled={!canGoBack}
@@ -54,27 +57,27 @@ export const FileViewer = ({
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
-          <h3 className="font-medium flex items-center gap-2">
-            <FileCode className="w-4 h-4 text-indigo-400" />
-            {file.path}
+          <h3 className="font-medium flex items-center gap-2 truncate text-sm">
+            <FileCode className="w-4 h-4 text-indigo-400 shrink-0" />
+            <span className="truncate">{file.path}</span>
           </h3>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-end gap-1">
           <button
             onClick={handleCopy}
-            className="p-1 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white mr-2"
+            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
             title="Copiar conteúdo"
           >
             {isCopied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
           </button>
           <button 
             onClick={onToggleMaximize} 
-            className="p-1 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white hidden md:block"
             title={isMaximized ? "Restaurar" : "Maximizar"}
           >
             {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
-          <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white">
+          <button onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white">
             <X className="w-4 h-4" />
           </button>
         </div>

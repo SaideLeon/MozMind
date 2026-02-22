@@ -2,9 +2,25 @@ import { RepoTreeResponse } from '@/types';
 
 const fileCache = new Map<string, string>();
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('github_token');
+  return token ? { 'x-github-token': token } : {};
+};
+
 export const githubApi = {
+  async getUserRepos(): Promise<any[]> {
+    const headers = getAuthHeaders();
+    if (!headers['x-github-token']) return [];
+
+    const res = await fetch('/api/github/repos', { headers });
+    if (!res.ok) throw new Error("Falha ao buscar repositórios");
+    return res.json();
+  },
+
   async getTree(owner: string, repo: string): Promise<RepoTreeResponse> {
-    const res = await fetch(`/api/github/tree?owner=${owner}&repo=${repo}`);
+    const res = await fetch(`/api/github/tree?owner=${owner}&repo=${repo}`, {
+      headers: getAuthHeaders()
+    });
     
     if (!res.ok) {
       let errorMsg = "Falha ao buscar repositório.";
@@ -38,7 +54,9 @@ export const githubApi = {
       return fileCache.get(cacheKey)!;
     }
 
-    const res = await fetch(`/api/github/content?owner=${owner}&repo=${repo}&path=${path}&branch=${branch}`);
+    const res = await fetch(`/api/github/content?owner=${owner}&repo=${repo}&path=${path}&branch=${branch}`, {
+      headers: getAuthHeaders()
+    });
     if (!res.ok) throw new Error("Falha ao buscar arquivo");
     
     const text = await res.text();

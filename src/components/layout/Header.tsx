@@ -6,15 +6,20 @@ interface HeaderProps {
   apiKeys: string[];
   keyIndex: number;
   onUploadKeys: (file: File) => Promise<number>;
+  onLogoClick?: () => void;
 }
 
-export const Header = ({ apiKeys = [], keyIndex = 0, onUploadKeys }: HeaderProps) => {
+export const Header = ({ apiKeys = [], keyIndex = 0, onUploadKeys, onLogoClick }: HeaderProps) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [githubToken, setGithubToken] = useState('');
 
   useEffect(() => {
+    const token = localStorage.getItem('github_token');
+    if (token) setGithubToken(token);
+
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
@@ -22,6 +27,15 @@ export const Header = ({ apiKeys = [], keyIndex = 0, onUploadKeys }: HeaderProps
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
+
+  const handleSaveToken = () => {
+    if (githubToken.trim()) {
+      localStorage.setItem('github_token', githubToken.trim());
+    } else {
+      localStorage.removeItem('github_token');
+    }
+    // Visual feedback could be added here
+  };
 
   const toggleFullscreen = async () => {
     try {
@@ -57,13 +71,16 @@ export const Header = ({ apiKeys = [], keyIndex = 0, onUploadKeys }: HeaderProps
 
   return (
     <header className="border-b border-white/10 bg-[#0a0a0a]/50 backdrop-blur-md sticky top-0 z-50">
-      <div className="w-full px-6 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
+      <div className="w-full px-4 md:px-6 h-16 flex items-center justify-between">
+        <button 
+          onClick={onLogoClick}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+        >
+          <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center shrink-0">
             <Code2 className="text-white w-5 h-5" />
           </div>
-          <span className="font-semibold text-lg tracking-tight text-white">CodeMind Analista</span>
-        </div>
+          <span className="font-semibold text-base md:text-lg tracking-tight text-white truncate max-w-[120px] md:max-w-none">CodeMind Analista</span>
+        </button>
         
         <div className="flex items-center gap-4">
           <button 
@@ -94,6 +111,28 @@ export const Header = ({ apiKeys = [], keyIndex = 0, onUploadKeys }: HeaderProps
         title="Gerenciar Chaves API"
       >
         <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-300">GitHub Token (Opcional)</label>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={githubToken}
+                onChange={(e) => setGithubToken(e.target.value)}
+                placeholder="ghp_..."
+                className="flex-1 bg-[#111] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+              <button
+                onClick={handleSaveToken}
+                className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg text-sm transition-colors"
+              >
+                Salvar
+              </button>
+            </div>
+            <p className="text-xs text-gray-500">
+              Adicione seu token pessoal para aumentar os limites de taxa da API e acessar repositórios privados.
+            </p>
+          </div>
+
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-300">Carregar arquivo de chaves (.txt)</label>
             <div 
