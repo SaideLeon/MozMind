@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { MessageSquare, Loader2, Maximize2, Minimize2, Code2, ChevronRight, Youtube, ExternalLink, Check, Copy } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import DOMPurify from 'dompurify';
 import { cn } from '@/lib/utils';
 import { AnalysisMessage } from '@/types';
 
@@ -124,7 +125,8 @@ export const ChatInterface = ({
                     }
                   }}
                 >
-                  {msg.content}
+                  {/* Sanitize content before rendering */}
+                  {DOMPurify.sanitize(msg.content)}
                 </ReactMarkdown>
               </div>
               

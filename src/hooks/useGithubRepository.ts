@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, startTransition } from 'react';
 import { FileNode } from '@/types';
 import { githubApi } from '@/services/github.api';
 
@@ -28,7 +28,12 @@ export function useGithubRepository() {
       const treeData = await githubApi.getTree(owner, repo);
       // We keep all nodes (trees and blobs) for the file explorer
       const allNodes = treeData.tree;
-      setFiles(allNodes);
+      
+      // Use startTransition for potentially expensive UI updates
+      startTransition(() => {
+          setFiles(allNodes);
+      });
+
       const currentBranch = treeData.branch || 'main';
       setBranch(currentBranch);
       

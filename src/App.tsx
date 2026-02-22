@@ -74,14 +74,14 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-gray-100 font-sans selection:bg-indigo-500/30">
+    <div className="h-screen flex flex-col overflow-hidden bg-[#0a0a0a] text-gray-100 font-sans selection:bg-indigo-500/30">
       <Header 
         apiKeys={apiKeys} 
         keyIndex={keyIndex} 
         onUploadKeys={handleKeyFileUpload} 
       />
       
-      <main className="w-full p-4 md:p-6">
+      <main className="flex-1 w-full p-4 md:p-6 overflow-hidden">
         <AnimatePresence mode="wait">
           {!repoUrl ? (
             <RepoInput key="input" onAnalyze={handleAnalyze} isLoading={isRepoLoading} />
@@ -91,12 +91,12 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="grid grid-cols-1 lg:grid-cols-12 gap-6"
+              className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full"
             >
               {/* Sidebar: File Tree */}
               {!maximizedPanel && (
                 <div className={cn(
-                  "bg-[#111] rounded-xl border border-white/10 p-4 h-[calc(100vh-120px)] overflow-hidden flex flex-col transition-all duration-300",
+                  "bg-[#111] rounded-xl border border-white/10 p-4 h-full overflow-hidden flex flex-col transition-all duration-300",
                   selectedFile ? "lg:col-span-2" : "lg:col-span-3"
                 )}>
                   <div className="mb-4 pb-4 border-b border-white/10">
@@ -129,7 +129,7 @@ export default function App() {
               {/* Main Content: Chat & Analysis */}
               {(maximizedPanel === 'chat' || (!maximizedPanel && !selectedFile) || (!maximizedPanel && selectedFile)) && (
                  <div className={cn(
-                  "h-[calc(100vh-120px)] flex flex-col gap-6 transition-all duration-300",
+                  "h-full flex flex-col gap-6 transition-all duration-300",
                   maximizedPanel === 'chat' ? "lg:col-span-12" : (selectedFile ? "lg:col-span-5" : "lg:col-span-9"),
                   maximizedPanel === 'file' ? "hidden" : ""
                 )}>
@@ -157,7 +157,7 @@ export default function App() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
                     className={cn(
-                      "h-[calc(100vh-120px)]",
+                      "h-full",
                       maximizedPanel === 'file' ? "lg:col-span-12" : "lg:col-span-5"
                     )}
                   >

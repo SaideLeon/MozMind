@@ -4,107 +4,131 @@ import fetch from "node-fetch";
 import path from "path";
 import aiRoutes from "./routes/ai.routes";
 import { cacheService } from "./services/cache.service";
+import { GithubRepoInfo, GithubTreeResponse } from "./types/github";
+import { errorHandler, AppError } from "./middleware/errorHandler";
+import { config } from "./config/env";
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = config.port;
 
   app.use(express.json({ limit: '50mb' })); // Increase limit for large file payloads
 
   // API Routes for GitHub Proxy
-  // We use a proxy to avoid CORS issues and manage basic fetching logic
   
   // Get Repository Tree (Recursive)
-  app.get("/api/github/tree", async (req, res) => {
-    const { owner, repo, branch } = req.query;
-    if (!owner || !repo) {
-      return res.status(400).json({ error: "Owner and repo are required" });
-    }
-
-    // Check cache first if branch is provided
-    if (branch) {
-      const cachedTree = cacheService.getTree(owner as string, repo as string, branch as string);
-      if (cachedTree) {
-        return res.json(cachedTree);
-      }
-    }
-
-    const ref = branch ? `?recursive=1&ref=${branch}` : '?recursive=1';
-    const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch || 'main'}${ref}`;
-
+  app.get("/api/github/tree", async (req, res, next) => {
     try {
+      const { owner, repo, branch } = req.query;
+      if (!owner || !repo) {
+        throw new AppError("Owner and repo are required", 400);
+      }
+
       const headers: any = {
         'User-Agent': 'CodeMind-Analyst',
         'Accept': 'application/vnd.github.v3+json'
       };
       
-      if (process.env.GITHUB_TOKEN) {
-        headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
+      if (config.githubToken) {
+        headers['Authorization'] = `Bearer ${config.githubToken}`;
       }
 
-      // Try main first, if fails try master (simple fallback logic)
-      let usedBranch = branch || 'main';
-      let response = await fetch(url, { headers });
-
-      if (response.status === 404 && !branch) {
-         // Try 'master' if 'main' failed and no branch specified
-         const masterUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`;
-         response = await fetch(masterUrl, { headers });
-         if (response.ok) usedBranch = 'master';
+      // Resolve branch if not provided
+      let targetBranch = branch as string;
+      if (!targetBranch) {
+        const repoInfoUrl = `https://api.github.com/repos/${owner}/${repo}`;
+        const repoRes = await fetch(repoInfoUrl, { headers });
+        
+        if (!repoRes.ok) {
+           const error = await repoRes.json();
+           throw new AppError("Failed to fetch repository info", repoRes.status, error);
+        }
+        
+        const repoInfo = await repoRes.json() as GithubRepoInfo;
+        targetBranch = repoInfo.default_branch;
       }
+
+      // Check cache
+      const cachedTree = cacheService.getTree(owner as string, repo as string, targetBranch);
+      if (cachedTree) {
+        return res.json(cachedTree);
+      }
+
+      const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${targetBranch}?recursive=1`;
+      const response = await fetch(url, { headers });
 
       if (!response.ok) {
         const error = await response.json();
-        return res.status(response.status).json(error);
+        throw new AppError("Failed to fetch repository tree", response.status, error);
       }
 
-      const data = await response.json() as any;
-      const result = { ...data, branch: usedBranch };
+      const data = await response.json() as GithubTreeResponse;
+      const result = { ...data, branch: targetBranch };
       
       // Cache the result
-      cacheService.setTree(owner as string, repo as string, usedBranch as string, result);
+      cacheService.setTree(owner as string, repo as string, targetBranch, result);
       
       res.json(result);
     } catch (error) {
-      console.error("GitHub API Error:", error);
-      res.status(500).json({ error: "Failed to fetch repository tree" });
+      next(error);
     }
   });
 
   // Get File Content
-  app.get("/api/github/content", async (req, res) => {
-    const { owner, repo, path, branch } = req.query;
-    if (!owner || !repo || !path || !branch) {
-      return res.status(400).json({ error: "Owner, repo, path, and branch are required" });
-    }
-
-    // Check cache first
-    const cachedContent = cacheService.getFileContent(owner as string, repo as string, branch as string, path as string);
-    if (cachedContent) {
-      return res.send(cachedContent);
-    }
-
-    const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
-
+  app.get("/api/github/content", async (req, res, next) => {
     try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        return res.status(response.status).json({ error: "Failed to fetch file content" });
+      const { owner, repo, path: filePath, branch } = req.query;
+      if (!owner || !repo || !filePath || !branch) {
+        throw new AppError("Owner, repo, path, and branch are required", 400);
       }
+
+      // Check cache first
+      const cachedContent = cacheService.getFileContent(owner as string, repo as string, branch as string, filePath as string);
+      if (cachedContent) {
+        return res.send(cachedContent);
+      }
+
+      const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new AppError("Failed to fetch file content", response.status);
+      }
+
+      // Robustness checks
+      const contentLength = response.headers.get('content-length');
+      if (contentLength && parseInt(contentLength) > 2 * 1024 * 1024) { // 2MB limit
+          throw new AppError("File too large (max 2MB)", 400);
+      }
+
+      const contentType = response.headers.get('content-type');
+      // Basic binary check (can be improved)
+      if (contentType && (
+          contentType.includes('image') || 
+          contentType.includes('application/octet-stream') ||
+          contentType.includes('application/pdf') ||
+          contentType.includes('video') ||
+          contentType.includes('audio')
+      )) {
+          throw new AppError("Binary files are not supported", 400);
+      }
+
       const text = await response.text();
       
       // Cache the content
-      cacheService.setFileContent(owner as string, repo as string, branch as string, path as string, text);
+      cacheService.setFileContent(owner as string, repo as string, branch as string, filePath as string, text);
       
       res.send(text);
     } catch (error) {
-      console.error("GitHub Content Error:", error);
-      res.status(500).json({ error: "Failed to fetch file content" });
+      next(error);
     }
   });
 
   // AI Routes
   app.use('/api/ai', aiRoutes);
+
+  // Error Handler Middleware
+  app.use(errorHandler);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
