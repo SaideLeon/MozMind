@@ -32,6 +32,48 @@ export const RepoInput = ({ onAnalyze, isLoading }: { onAnalyze: (url: string) =
     }
   };
 
+  const handleConnectGithub = async () => {
+    try {
+      const res = await fetch('/api/github/auth/url');
+      if (!res.ok) throw new Error('Falha ao obter URL de autenticação');
+      const { url } = await res.json();
+      
+      const width = 600;
+      const height = 700;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      
+      window.open(
+        url,
+        'github_auth',
+        `width=${width},height=${height},left=${left},top=${top}`
+      );
+    } catch (err) {
+      console.error("Erro ao conectar GitHub:", err);
+    }
+  };
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'GITHUB_AUTH_SUCCESS') {
+        setHasToken(true);
+        loadUserRepos();
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  useEffect(() => {
+    const handleTokenUpdate = () => {
+      const token = localStorage.getItem('github_token');
+      setHasToken(!!token);
+      if (token) loadUserRepos();
+    };
+    window.addEventListener('github_token_updated', handleTokenUpdate);
+    return () => window.removeEventListener('github_token_updated', handleTokenUpdate);
+  }, []);
+
   const filteredRepos = useMemo(() => {
     return userRepos.filter(repo => 
       repo.full_name.toLowerCase().includes(repoSearch.toLowerCase()) ||
@@ -98,16 +140,11 @@ export const RepoInput = ({ onAnalyze, isLoading }: { onAnalyze: (url: string) =
             <div className="pt-4">
               <p className="text-xs text-gray-600 mb-3">Quer navegar nos seus próprios repositórios?</p>
               <button 
-                onClick={() => {
-                  // Trigger settings modal - we need to communicate this to App or Header
-                  // For now, let's just show a hint that they should use the settings icon
-                  const settingsBtn = document.querySelector('[title="Gerenciar Chaves API"]') as HTMLButtonElement;
-                  if (settingsBtn) settingsBtn.click();
-                }}
+                onClick={handleConnectGithub}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-xs text-gray-400 hover:text-white transition-all"
               >
                 <Github className="w-3 h-3" />
-                Configurar Token do GitHub
+                Conectar com GitHub (OAuth)
               </button>
             </div>
           </div>

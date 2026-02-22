@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Code2, Settings, Upload, Key, Maximize, Minimize } from 'lucide-react';
+import { Code2, Settings, Upload, Key, Maximize, Minimize, Github } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 
 interface HeaderProps {
@@ -69,6 +69,41 @@ export const Header = ({ apiKeys = [], keyIndex = 0, onUploadKeys, onLogoClick }
     }
   };
 
+  const handleConnectGithub = async () => {
+    try {
+      const res = await fetch('/api/github/auth/url');
+      if (!res.ok) throw new Error('Falha ao obter URL de autenticação');
+      const { url } = await res.json();
+      
+      const width = 600;
+      const height = 700;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      
+      window.open(
+        url,
+        'github_auth',
+        `width=${width},height=${height},left=${left},top=${top}`
+      );
+    } catch (err) {
+      console.error("Erro ao conectar GitHub:", err);
+    }
+  };
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'GITHUB_AUTH_SUCCESS') {
+        const token = event.data.token;
+        localStorage.setItem('github_token', token);
+        setGithubToken(token);
+        // Trigger a custom event or state update to refresh repos
+        window.dispatchEvent(new Event('github_token_updated'));
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
   return (
     <header className="border-b border-white/10 bg-[#0a0a0a]/50 backdrop-blur-md sticky top-0 z-50">
       <div className="w-full px-4 md:px-6 h-16 flex items-center justify-between">
@@ -112,7 +147,16 @@ export const Header = ({ apiKeys = [], keyIndex = 0, onUploadKeys, onLogoClick }
       >
         <div className="space-y-6">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-300">GitHub Token (Opcional)</label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-300">GitHub Token (Opcional)</label>
+              <button 
+                onClick={handleConnectGithub}
+                className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 px-2 py-1 bg-indigo-500/10 rounded-md border border-indigo-500/20 transition-colors"
+              >
+                <Github className="w-3 h-3" />
+                Conectar via OAuth
+              </button>
+            </div>
             <div className="flex gap-2">
               <input
                 type="password"
