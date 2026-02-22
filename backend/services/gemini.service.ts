@@ -2,13 +2,17 @@ import { GoogleGenAI } from "@google/genai";
 
 let aiClient: GoogleGenAI | null = null;
 
-export function getAIClient() {
+export function getAIClient(apiKey?: string) {
+  if (apiKey) {
+    return new GoogleGenAI({ apiKey });
+  }
+
   if (!aiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
+    const envKey = process.env.GEMINI_API_KEY;
+    if (!envKey) {
       throw new Error("GEMINI_API_KEY is not set");
     }
-    aiClient = new GoogleGenAI({ apiKey });
+    aiClient = new GoogleGenAI({ apiKey: envKey });
   }
   return aiClient;
 }

@@ -42,7 +42,10 @@ export default function App() {
     isGeneratingBlueprint,
     performInitialAnalysis,
     sendMessage,
-    generateProjectBlueprint
+    generateProjectBlueprint,
+    apiKeys,
+    keyIndex,
+    handleKeyFileUpload
   } = useAIChat();
 
   // Effects
@@ -72,7 +75,11 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-gray-100 font-sans selection:bg-indigo-500/30">
-      <Header />
+      <Header 
+        apiKeys={apiKeys} 
+        keyIndex={keyIndex} 
+        onUploadKeys={handleKeyFileUpload} 
+      />
       
       <main className="w-full p-4 md:p-6">
         <AnimatePresence mode="wait">

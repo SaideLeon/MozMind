@@ -5,8 +5,8 @@ const router = express.Router();
 
 router.post('/analyze', async (req, res) => {
   try {
-    const { prompt, contextFiles } = req.body;
-    const ai = getAIClient();
+    const { prompt, contextFiles, apiKey } = req.body;
+    const ai = getAIClient(apiKey);
 
     const fileContext = contextFiles.map((f: any) => `--- ${f.path} ---\n${f.content}\n`).join("\n");
     
@@ -58,8 +58,8 @@ router.post('/analyze', async (req, res) => {
 
 router.post('/think', async (req, res) => {
   try {
-    const { history, currentInput, context } = req.body;
-    const ai = getAIClient();
+    const { history, currentInput, context, apiKey } = req.body;
+    const ai = getAIClient(apiKey);
 
     const systemInstruction = `
       You are a thoughtful and rigorous Lead Engineer. 
@@ -113,8 +113,8 @@ router.post('/think', async (req, res) => {
 
 router.post('/blueprint', async (req, res) => {
     try {
-      const { contextFiles, context } = req.body;
-      const ai = getAIClient();
+      const { contextFiles, context, apiKey } = req.body;
+      const ai = getAIClient(apiKey);
       
       const fileContext = contextFiles.map((f: any) => `--- ${f.path} ---\n${f.content}\n`).join("\n");
       
