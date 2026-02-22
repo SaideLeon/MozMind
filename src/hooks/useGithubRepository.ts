@@ -7,6 +7,7 @@ export function useGithubRepository() {
   const [files, setFiles] = useState<FileNode[]>([]);
   const [branch, setBranch] = useState<string>('main');
   const [isLoading, setIsLoading] = useState(false);
+  const [isFileLoading, setIsFileLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<{ path: string, content: string } | null>(null);
   
@@ -65,6 +66,7 @@ export function useGithubRepository() {
     
     if (selectedFile && selectedFile.path === path) return;
 
+    setIsFileLoading(true);
     try {
       const cleanUrl = repoUrl.replace(/\.git\/?$/, "").replace(/\/$/, "");
       const match = cleanUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
@@ -85,6 +87,8 @@ export function useGithubRepository() {
     } catch (err) {
       console.error(err);
       setError("Falha ao carregar conteúdo do arquivo");
+    } finally {
+      setIsFileLoading(false);
     }
   }, [repoUrl, selectedFile, fileHistory, currentHistoryIndex, branch]);
 
@@ -117,6 +121,7 @@ export function useGithubRepository() {
     repoUrl,
     files,
     isLoading,
+    isFileLoading,
     error,
     selectedFile,
     fileHistory,

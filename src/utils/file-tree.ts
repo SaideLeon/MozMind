@@ -1,4 +1,4 @@
-import { FileNode } from '@/types';
+import { RepoNode } from '@/types';
 
 export interface TreeNode {
   id: string;
@@ -14,7 +14,7 @@ export interface FlatNode extends TreeNode {
   hasChildren?: boolean;
 }
 
-export function buildTree(files: FileNode[]): TreeNode[] {
+export function buildTree(files: RepoNode[]): TreeNode[] {
   const root: TreeNode[] = [];
   const map: Record<string, TreeNode> = {};
 

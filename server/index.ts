@@ -14,7 +14,7 @@ async function startServer() {
   const app = express();
   const PORT = config.port;
 
-  app.use(express.json({ limit: '50mb' }));
+  app.use(express.json({ limit: '2mb' }));
 
   // API Routes
   app.use("/api/ai", aiRoutes);

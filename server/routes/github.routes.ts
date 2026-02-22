@@ -3,9 +3,13 @@ import fetch from "node-fetch";
 import { config } from "../config/env";
 import { cacheService } from "../services/cache.service";
 import { AppError } from "../middleware/errorHandler";
+import { validateGithubToken } from "../middleware/githubAuth";
 import { GithubRepoInfo, GithubTreeResponse } from "../types/github";
 
 const router = Router();
+
+// Apply token validation to all routes that use the token
+router.use(["/repos", "/tree", "/content"], validateGithubToken);
 
 // Helper to get headers
 const getGithubHeaders = (req: any) => {

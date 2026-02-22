@@ -1,47 +1,53 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, FileCode, Folder, FolderOpen, ChevronRight, ChevronDown } from 'lucide-react';
-import { FileNode } from '@/types';
+import { FileNode, RepoNode } from '@/types';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { buildTree, flattenTree } from '@/utils/file-tree';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/Skeleton';
 
-export const FileTree = ({ files, onSelect }: { files: FileNode[], onSelect: (path: string) => void }) => {
+export const FileTree = ({ files, onSelect, isLoading }: { files: RepoNode[], onSelect: (path: string) => void, isLoading?: boolean }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const parentRef = useRef<HTMLDivElement>(null);
+
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // Build the tree structure
   const tree = useMemo(() => buildTree(files), [files]);
 
   // Filter and Flatten
   const flatNodes = useMemo(() => {
-    // If searching, we might want to show all matching files flat, or filter the tree
-    // For simplicity, if searching, show flat list of matches.
-    // If not searching, show tree.
-    
-    if (searchTerm) {
-      const lowerTerm = searchTerm.toLowerCase();
+    if (debouncedSearchTerm) {
+      const lowerTerm = debouncedSearchTerm.toLowerCase();
       return files
         .filter(f => f.path.toLowerCase().includes(lowerTerm))
         .map(f => ({
           id: f.path,
-          name: f.path, // Show full path in search
+          name: f.path, 
           path: f.path,
           type: f.type,
           level: 0,
           children: [],
           isExpanded: false,
           hasChildren: false
-        }));
+        } as any)); // Use any here to avoid complex tree node type mismatch in flat list
     }
 
     return flattenTree(tree, expandedIds);
-  }, [tree, expandedIds, searchTerm, files]);
+  }, [tree, expandedIds, debouncedSearchTerm, files]);
 
   const rowVirtualizer = useVirtualizer({
     count: flatNodes.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 28, // 28px per row
+    estimateSize: () => 28, 
     overscan: 5,
   });
 
@@ -57,17 +63,33 @@ export const FileTree = ({ files, onSelect }: { files: FileNode[], onSelect: (pa
     });
   };
 
-  // Auto-expand root folders initially if tree is small? 
-  // Or just leave collapsed. Let's leave collapsed but maybe expand 'src' if it exists.
   useEffect(() => {
-    if (files.length > 0 && expandedIds.size === 0 && !searchTerm) {
-        // Optional: Expand first level directories
+    if (files.length > 0 && expandedIds.size === 0 && !debouncedSearchTerm) {
         const topLevelDirs = files.filter(f => f.type === 'tree' && !f.path.includes('/')).map(f => f.path);
         if (topLevelDirs.length < 5) {
             setExpandedIds(new Set(topLevelDirs));
         }
     }
-  }, [files]);
+  }, [files, debouncedSearchTerm]);
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex flex-col">
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Arquivos do Repositório</h3>
+        <div className="relative mb-4">
+          <Skeleton className="h-8 w-full" />
+        </div>
+        <div className="space-y-2">
+          {[...Array(10)].map((_, i) => (
+            <div key={i} className="flex items-center gap-2 px-2">
+              <Skeleton className="w-4 h-4 rounded" />
+              <Skeleton className="h-4 flex-1" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col">
@@ -122,7 +144,7 @@ export const FileTree = ({ files, onSelect }: { files: FileNode[], onSelect: (pa
                     !isFolder && "cursor-pointer",
                     isFolder && "cursor-pointer font-medium text-gray-200"
                   )}
-                  style={{ paddingLeft: searchTerm ? '8px' : `${node.level * 16 + 8}px` }}
+                  style={{ paddingLeft: debouncedSearchTerm ? '8px' : `${node.level * 16 + 8}px` }}
                 >
                   {isFolder ? (
                     <span className="flex items-center gap-1.5 min-w-0">

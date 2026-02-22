@@ -1,9 +1,10 @@
-export interface FileNode {
-  path: string;
+import { RepoNode } from './types/github';
+
+export type { RepoNode };
+
+export interface FileNode extends RepoNode {
   mode: string;
-  type: 'blob' | 'tree';
   sha: string;
-  size?: number;
   url: string;
 }
 

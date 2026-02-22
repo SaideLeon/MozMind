@@ -29,6 +29,7 @@ export default function App() {
     repoUrl,
     files,
     isLoading: isRepoLoading,
+    isFileLoading,
     error: repoError,
     selectedFile,
     fileHistory,
@@ -224,9 +225,10 @@ export default function App() {
               </div>
 
               {/* File Preview Pane */}
-              <AnimatePresence>
-                {selectedFile && (maximizedPanel === 'file' || !maximizedPanel) && (
+              <AnimatePresence mode="wait">
+                {(selectedFile || isFileLoading) && (maximizedPanel === 'file' || !maximizedPanel) && (
                   <motion.div 
+                    key={isFileLoading ? "loading" : (selectedFile?.path || "preview")}
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
@@ -236,16 +238,23 @@ export default function App() {
                       activeMobileTab !== 'preview' ? "hidden lg:block" : "block"
                     )}
                   >
-                    <FileViewer 
-                      file={selectedFile} 
-                      onClose={() => setSelectedFile(null)} 
-                      isMaximized={maximizedPanel === 'file'}
-                      onToggleMaximize={() => setMaximizedPanel(prev => prev === 'file' ? null : 'file')}
-                      onBack={navigateBack}
-                      onForward={navigateForward}
-                      canGoBack={currentHistoryIndex > 0}
-                      canGoForward={currentHistoryIndex < fileHistory.length - 1}
-                    />
+                    {isFileLoading ? (
+                      <div className="h-full flex flex-col items-center justify-center bg-[#111] rounded-xl border border-white/10">
+                        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mb-4" />
+                        <p className="text-sm text-gray-400">Carregando arquivo...</p>
+                      </div>
+                    ) : selectedFile && (
+                      <FileViewer 
+                        file={selectedFile} 
+                        onClose={() => setSelectedFile(null)} 
+                        isMaximized={maximizedPanel === 'file'}
+                        onToggleMaximize={() => setMaximizedPanel(prev => prev === 'file' ? null : 'file')}
+                        onBack={navigateBack}
+                        onForward={navigateForward}
+                        canGoBack={currentHistoryIndex > 0}
+                        canGoForward={currentHistoryIndex < fileHistory.length - 1}
+                      />
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>

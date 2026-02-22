@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { MessageSquare, Loader2, Maximize2, Minimize2, Code2, ChevronRight, Youtube, ExternalLink, Check, Copy } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -6,41 +6,9 @@ import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import DOMPurify from 'dompurify';
 import { cn } from '@/lib/utils';
 import { AnalysisMessage } from '@/types';
+import { Skeleton } from '@/components/ui/Skeleton';
 
-const CodeBlock = ({ language, children, ...props }: any) => {
-  const [isCopied, setIsCopied] = useState(false);
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(String(children));
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
-  };
-
-  return (
-    <div className="relative group rounded-md overflow-hidden my-4 border border-white/10">
-      <div className="absolute right-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={handleCopy}
-          className="p-1.5 bg-white/10 hover:bg-white/20 rounded-md text-gray-300 hover:text-white transition-colors"
-          title="Copiar código"
-        >
-          {isCopied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-        </button>
-      </div>
-      <div className="bg-[#1e1e1e] px-4 py-2 text-xs text-gray-400 border-b border-white/5 flex justify-between items-center">
-        <span>{language}</span>
-      </div>
-      <SyntaxHighlighter
-        {...props}
-        PreTag="div"
-        children={String(children).replace(/\n$/, '')}
-        language={language}
-        style={atomDark}
-        customStyle={{ margin: 0, borderRadius: 0, background: '#1a1a1a' }}
-      />
-    </div>
-  );
-};
+import { SafeMarkdown } from '@/components/ui/SafeMarkdown';
 
 export const ChatInterface = ({ 
   messages, 
@@ -57,18 +25,28 @@ export const ChatInterface = ({
 }) => {
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [userHasScrolledUp, setUserHasScrolledUp] = useState(false);
+
+  const handleScroll = useCallback(() => {
+    if (!scrollRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    // If user is more than 100px away from bottom, consider they scrolled up
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+    setUserHasScrolledUp(!isAtBottom);
+  }, []);
 
   useEffect(() => {
-    if (scrollRef.current) {
+    if (scrollRef.current && !userHasScrolledUp) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isThinking]);
+  }, [messages, isThinking, userHasScrolledUp]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim()) {
       onSendMessage(input);
       setInput('');
+      setUserHasScrolledUp(false); // Reset on new message
     }
   };
 
@@ -99,7 +77,29 @@ export const ChatInterface = ({
         </button>
       </div>
       
-      <div className="flex-1 overflow-y-auto p-4 space-y-6" ref={scrollRef}>
+      <div 
+        className="flex-1 overflow-y-auto p-4 space-y-6" 
+        ref={scrollRef}
+        onScroll={handleScroll}
+      >
+        {messages.length === 0 && !isThinking && (
+          <div className="space-y-4">
+            <div className="flex gap-4">
+              <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            </div>
+            <div className="flex gap-4 flex-row-reverse">
+              <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+              <div className="space-y-2 flex-1 flex flex-col items-end">
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            </div>
+          </div>
+        )}
+
         {messages.map((msg, idx) => (
           <div key={idx} className={cn("flex gap-4", msg.role === 'user' ? "flex-row-reverse" : "")}>
             <div className={cn(
@@ -112,26 +112,7 @@ export const ChatInterface = ({
               "max-w-[80%] rounded-2xl p-4 text-sm leading-relaxed overflow-hidden",
               msg.role === 'user' ? "bg-gray-800 text-white" : "bg-[#1a1a1a] border border-white/10 text-gray-200"
             )}>
-              <div className="prose prose-invert prose-sm max-w-none break-words">
-                <ReactMarkdown
-                  components={{
-                    code(props) {
-                      const {children, className, node, ref, ...rest} = props
-                      const match = /language-(\w+)/.exec(className || '')
-                      return match ? (
-                        <CodeBlock language={match[1]} children={children} {...rest} />
-                      ) : (
-                        <code {...rest} ref={ref} className={className}>
-                          {children}
-                        </code>
-                      )
-                    }
-                  }}
-                >
-                  {/* Sanitize content before rendering */}
-                  {DOMPurify.sanitize(msg.content)}
-                </ReactMarkdown>
-              </div>
+              <SafeMarkdown content={msg.content} />
               
               {/* Grounding / Links */}
               {msg.relatedLinks && msg.relatedLinks.length > 0 && (
@@ -161,8 +142,11 @@ export const ChatInterface = ({
              <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center shrink-0">
                <Code2 className="w-4 h-4" />
              </div>
-             <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-4 text-sm text-gray-400 italic animate-pulse">
-               Analisando implicações... Buscando padrões relevantes...
+             <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-4 text-sm text-gray-400 italic animate-pulse flex-1">
+               <div className="space-y-2">
+                 <Skeleton className="h-3 w-full opacity-50" />
+                 <Skeleton className="h-3 w-2/3 opacity-50" />
+               </div>
              </div>
            </div>
         )}

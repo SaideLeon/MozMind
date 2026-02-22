@@ -4,6 +4,8 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { cn } from '@/lib/utils';
 
+import { FileNode, RepoNode } from '@/types';
+
 export const FileViewer = ({ 
   file, 
   onClose, 
@@ -14,7 +16,7 @@ export const FileViewer = ({
   canGoBack,
   canGoForward
 }: { 
-  file: { path: string, content: string }, 
+  file: RepoNode, 
   onClose: () => void, 
   isMaximized: boolean, 
   onToggleMaximize: () => void,
@@ -27,7 +29,7 @@ export const FileViewer = ({
   const [isCopied, setIsCopied] = useState(false);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(file.content);
+    await navigator.clipboard.writeText(file.content || '');
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   };
@@ -89,7 +91,7 @@ export const FileViewer = ({
           showLineNumbers
           customStyle={{ margin: 0, padding: '1.5rem', background: '#0d0d0d', minHeight: '100%' }}
         >
-          {file.content}
+          {file.content || ''}
         </SyntaxHighlighter>
       </div>
     </div>

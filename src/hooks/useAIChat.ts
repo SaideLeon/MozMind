@@ -1,27 +1,27 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { AnalysisMessage } from '@/types';
 import { analyzeCode, thinkAndSuggest, generateBlueprint as generateBlueprintService } from '@/services/ai';
 import { limitTextContext } from '@/utils/textLimiter';
 import { getResponseText } from '@/utils/ai-helpers';
+import { useChatStore } from '@/store/useChatStore';
 
 export function useAIChat() {
-  const [chatHistory, setChatHistory] = useState<AnalysisMessage[]>([]);
-  const [isThinking, setIsThinking] = useState(false);
-  const [analysis, setAnalysis] = useState<string | null>(null);
-  const [isGeneratingBlueprint, setIsGeneratingBlueprint] = useState(false);
-  
-  // API Key Rotation State
-  const [apiKeys, setApiKeys] = useState<string[]>([]);
-  const [keyIndex, setKeyIndex] = useState(0);
-
-  const getNextKey = useCallback(() => {
-    if (apiKeys.length > 0) {
-      const key = apiKeys[keyIndex];
-      setKeyIndex((prev) => (prev + 1) % apiKeys.length);
-      return key;
-    }
-    return undefined;
-  }, [apiKeys, keyIndex]);
+  const {
+    chatHistory,
+    isThinking,
+    analysis,
+    isGeneratingBlueprint,
+    apiKeys,
+    keyIndex,
+    setChatHistory,
+    addMessage,
+    setIsThinking,
+    setAnalysis,
+    setIsGeneratingBlueprint,
+    setApiKeys,
+    setKeyIndex,
+    getNextKey
+  } = useChatStore();
 
   const handleKeyFileUpload = useCallback(async (file: File) => {
     try {
@@ -33,19 +33,17 @@ export function useAIChat() {
       }
       
       setApiKeys(keys);
-      setKeyIndex(0);
       return keys.length;
     } catch (err) {
       console.error("Erro ao ler arquivo de chaves:", err);
       throw err;
     }
-  }, []);
+  }, [setApiKeys]);
 
   const performInitialAnalysis = useCallback(async (files: { path: string, content: string }[]) => {
     try {
       const activeKey = getNextKey();
       
-      // Apply text limiter to file contents before sending to AI
       const limitedFiles = files.map(f => ({
         path: f.path,
         content: limitTextContext(f.content)
@@ -74,10 +72,11 @@ export function useAIChat() {
       console.error("AI Analysis Error:", error);
       throw error;
     }
-  }, [getNextKey]);
+  }, [getNextKey, setAnalysis, setChatHistory]);
 
   const sendMessage = useCallback(async (msg: string) => {
-    const newHistory = [...chatHistory, { role: 'user', content: msg, timestamp: Date.now() } as AnalysisMessage];
+    const userMsg: AnalysisMessage = { role: 'user', content: msg, timestamp: Date.now() };
+    const newHistory = [...chatHistory, userMsg];
     setChatHistory(newHistory);
     setIsThinking(true);
 
@@ -101,23 +100,23 @@ export function useAIChat() {
         url: c.web?.uri
       })).filter((l: any): l is { title: string; url: string } => !!l.url) || [];
 
-      setChatHistory(prev => [...prev, {
+      addMessage({
         role: 'model',
         content: responseText,
         timestamp: Date.now(),
         relatedLinks: links
-      }]);
+      });
     } catch (err) {
       console.error(err);
-      setChatHistory(prev => [...prev, {
+      addMessage({
         role: 'model',
         content: `Erro: ${err instanceof Error ? err.message : "Erro desconhecido ao processar resposta."}`,
         timestamp: Date.now()
-      }]);
+      });
     } finally {
       setIsThinking(false);
     }
-  }, [chatHistory, analysis, getNextKey]);
+  }, [chatHistory, analysis, getNextKey, setChatHistory, addMessage, setIsThinking]);
 
   const generateProjectBlueprint = useCallback(async (repoName: string, contextFiles: { path: string, content: string }[]) => {
     if (!analysis) return;
@@ -152,7 +151,7 @@ export function useAIChat() {
     } finally {
       setIsGeneratingBlueprint(false);
     }
-  }, [analysis, getNextKey]);
+  }, [analysis, getNextKey, setIsGeneratingBlueprint]);
 
   return {
     chatHistory,
@@ -163,7 +162,6 @@ export function useAIChat() {
     sendMessage,
     generateProjectBlueprint,
     setChatHistory,
-    // API Key Management
     apiKeys,
     keyIndex,
     handleKeyFileUpload
