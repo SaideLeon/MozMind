@@ -1,27 +1,27 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { AnalysisMessage } from '@/types';
 import { analyzeCode, thinkAndSuggest, generateBlueprint as generateBlueprintService } from '@/services/ai';
 import { limitTextContext } from '@/utils/textLimiter';
 import { getResponseText } from '@/utils/ai-helpers';
-import { useChatStore } from '@/store/useChatStore';
 
 export function useAIChat() {
-  const {
-    chatHistory,
-    isThinking,
-    analysis,
-    isGeneratingBlueprint,
-    apiKeys,
-    keyIndex,
-    setChatHistory,
-    addMessage,
-    setIsThinking,
-    setAnalysis,
-    setIsGeneratingBlueprint,
-    setApiKeys,
-    setKeyIndex,
-    getNextKey
-  } = useChatStore();
+  const [chatHistory, setChatHistory] = useState<AnalysisMessage[]>([]);
+  const [isThinking, setIsThinking] = useState(false);
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [isGeneratingBlueprint, setIsGeneratingBlueprint] = useState(false);
+  const [apiKeys, setApiKeys] = useState<string[]>([]);
+  const [keyIndex, setKeyIndex] = useState(0);
+
+  const getNextKey = useCallback(() => {
+    if (apiKeys.length === 0) return undefined;
+    const key = apiKeys[keyIndex];
+    setKeyIndex((keyIndex + 1) % apiKeys.length);
+    return key;
+  }, [apiKeys, keyIndex]);
+
+  const addMessage = useCallback((msg: AnalysisMessage) => {
+    setChatHistory(prev => [...prev, msg]);
+  }, []);
 
   const handleKeyFileUpload = useCallback(async (file: File) => {
     try {

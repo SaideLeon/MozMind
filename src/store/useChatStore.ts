@@ -1,43 +1,48 @@
 import { create } from 'zustand';
-import { AnalysisMessage } from '@/types';
+import { AnalysisMessage } from '../types';
 
 interface ChatState {
   chatHistory: AnalysisMessage[];
   isThinking: boolean;
-  analysis: string;
+  analysis: string | null;
   isGeneratingBlueprint: boolean;
   apiKeys: string[];
   keyIndex: number;
-  setChatHistory: (messages: AnalysisMessage[]) => void;
+  
+  // Actions
+  setChatHistory: (history: AnalysisMessage[]) => void;
   addMessage: (message: AnalysisMessage) => void;
-  setIsThinking: (value: boolean) => void;
-  setAnalysis: (value: string) => void;
-  setIsGeneratingBlueprint: (value: boolean) => void;
+  setIsThinking: (isThinking: boolean) => void;
+  setAnalysis: (analysis: string | null) => void;
+  setIsGeneratingBlueprint: (isGenerating: boolean) => void;
   setApiKeys: (keys: string[]) => void;
-  setKeyIndex: (value: number) => void;
+  setKeyIndex: (index: number) => void;
   getNextKey: () => string | undefined;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
   chatHistory: [],
   isThinking: false,
-  analysis: '',
+  analysis: null,
   isGeneratingBlueprint: false,
   apiKeys: [],
   keyIndex: 0,
-  setChatHistory: (messages) => set({ chatHistory: messages }),
+
+  setChatHistory: (history) => set({ chatHistory: history }),
   addMessage: (message) => set((state) => ({ chatHistory: [...state.chatHistory, message] })),
-  setIsThinking: (value) => set({ isThinking: value }),
-  setAnalysis: (value) => set({ analysis: value }),
-  setIsGeneratingBlueprint: (value) => set({ isGeneratingBlueprint: value }),
+  setIsThinking: (isThinking) => set({ isThinking }),
+  setAnalysis: (analysis) => set({ analysis }),
+  setIsGeneratingBlueprint: (isGenerating) => set({ isGeneratingBlueprint: isGenerating }),
   setApiKeys: (keys) => set({ apiKeys: keys, keyIndex: 0 }),
-  setKeyIndex: (value) => set({ keyIndex: value }),
+  setKeyIndex: (index) => set({ keyIndex: index }),
+  
   getNextKey: () => {
     const { apiKeys, keyIndex } = get();
-    if (apiKeys.length === 0) return undefined;
-
-    const activeKey = apiKeys[keyIndex % apiKeys.length];
-    set({ keyIndex: (keyIndex + 1) % apiKeys.length });
-    return activeKey;
-  }
+    if (apiKeys.length > 0) {
+      const key = apiKeys[keyIndex];
+      set({ keyIndex: (keyIndex + 1) % apiKeys.length });
+      return key;
+    }
+    return undefined;
+  },
 }));

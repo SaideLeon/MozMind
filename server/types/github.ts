@@ -39,3 +39,12 @@ export interface RepoNode {
   size?: number;
   isBinary?: boolean;
 }
+
+export interface Commit {
+  sha: string;
+  message: string;
+  author: {
+    name: string;
+    date: string;
+  };
+}
